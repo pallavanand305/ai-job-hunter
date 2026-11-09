@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Job Hunter</title>
+  <link rel="stylesheet" href="/static/styles.css?v=20261108c" />
+</head>
+<body>
+  <header>
+    <span class="logo">AI Job Hunter</span>
+    <span class="badge" id="llmBadge">LLM: ...</span>
+    <span class="badge" id="schedulerBadge">Scheduler: ...</span>
+    <span class="header-spacer"></span>
+    <span class="badge" id="profileBadge">...</span>
+    <button class="primary" onclick="discoverNow()">Run discovery</button>
+    <button onclick="rematchNow()">Re-match</button>
+  </header>
+
+  <nav>
+    <button class="active" data-view="dashboard">Dashboard</button>
+    <button data-view="jobs">Jobs</button>
+    <button data-view="tailor">Tailor JD</button>
+    <button data-view="applications">Applications</button>
+    <button data-view="outreach">Outreach</button>
+    <button data-view="profile">Profile</button>
+    <button data-view="settings">Settings</button>
+  </nav>
+
+  <main>
+    <section class="view active" id="view-dashboard">
+      <div class="grid stats" id="stats"></div>
+      <div class="grid two" style="margin-top:16px">
+        <div class="card">
+          <div class="row"><h2>Top matches</h2><span class="spacer"></span><span class="muted small">Click a role to view it in Jobs</span></div>
+          <div id="topMatches"><div class="empty">No matches yet. Run discovery, then re-match.</div></div>
+        </div>
+        <div class="card">
+          <h2>Application pipeline</h2>
+          <div id="pipeline"></div>
+          <hr />
+          <h2>Recent applications</h2>
+          <div id="recentApps"><div class="empty">No applications yet.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-jobs">
+      <div class="toolbar">
+        <div class="field"><label>Search</label><input id="jobSearch" placeholder="title, company, keyword" onkeydown="if(event.key==='Enter')loadJobs()" /></div>
+        <div class="field" style="max-width:160px"><label>Min score</label><input id="jobMinScore" type="number" value="0" min="0" max="100" /></div>
+        <div class="field" style="max-width:180px"><label>Work mode</label><select id="jobRemote">
+          <option value="">All modes</option>
+          <option value="true">Remote / WFH</option>
+          <option value="false">Onsite / Hybrid</option>
+        </select></div>
+        <div class="field" style="max-width:190px"><label>Region</label><select id="jobRegion">
+          <option value="preferred" selected>India onsite + India-eligible remote</option>
+          <option value="india_wfh">India WFH only</option>
+          <option value="">All regions</option>
+          <option value="india">India (all)</option>
+          <option value="us">United States</option>
+          <option value="global">Global remote</option>
+        </select></div>
+        <div class="field" style="max-width:180px"><label>India eligibility</label><select id="jobIndiaEligible">
+          <option value="">All</option>
+          <option value="true">Eligible only</option>
+          <option value="false">Not eligible</option>
+        </select></div>
+        <div class="field" style="max-width:140px"><label>Show stale</label><label><input type="checkbox" id="jobShowStale" style="width:auto" onchange="loadJobs()" /> Include stale</label></div>
+        <button class="primary" onclick="loadJobs()">Search</button>
+        <span class="spacer"></span>
+        <button onclick="loadJobs()">Refresh</button>
+      </div>
+      <div id="jobList"><div class="empty">Loading...</div></div>
+    </section>
+
+    <section class="view" id="view-tailor">
+      <div class="grid two">
+        <div class="card">
+          <div class="row"><h2>Paste any job description</h2><span class="spacer"></span><button class="primary" onclick="tailorManual()">Tailor my resume</button></div>
+          <p class="muted small">Works with LinkedIn, Naukri, Indeed, Instahyre, Wellfound or any company career page. Paste the JD and get a tailored resume you can download and upload there.</p>
+          <div id="llmTailorWarning" class="warning" style="display:none"></div>
+          <div class="field"><label>Job title (optional)</label><input id="manualTitle" placeholder="e.g. Senior Backend Engineer" /></div>
+          <div class="field"><label>Company (optional)</label><input id="manualCompany" placeholder="e.g. Acme" /></div>
+          <div class="row">
+            <div class="field" style="flex:1"><label>Location (optional)</label><input id="manualLocation" placeholder="Noida, India" /></div>
+            <div class="field" style="max-width:130px"><label>Work mode</label><label><input type="checkbox" id="manualRemote" style="width:auto" /> Remote</label></div>
+          </div>
+          <div class="field"><label>Job URL (optional)</label><input id="manualUrl" placeholder="https://..." /></div>
+          <div class="field"><label>Job description</label><textarea id="manualJd" rows="11" placeholder="Paste the full JD here: role, responsibilities, required skills..."></textarea></div>
+          <button class="primary" onclick="tailorManual()" style="width:100%">Tailor my resume</button>
+        </div>
+        <div class="card">
+          <h2>How it works</h2>
+          <ol class="muted small" style="margin:8px 0 0 18px;line-height:1.8">
+            <li>Copy the full job description from LinkedIn, Naukri or any portal.</li>
+            <li>Paste it here and click <b>Tailor my resume</b>.</li>
+            <li>Review the preview first.</li>
+            <li>Download the PDF or DOCX from the buttons below the preview.</li>
+            <li>Upload/paste that file into the portal application form.</li>
+          </ol>
+          <p class="muted small" style="margin-top:14px">Your master resume, skills and real experience are used. Nothing is invented and nothing is auto-submitted.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px" id="manualResultCard">
+        <div class="empty">Paste a JD above to generate a tailored resume.</div>
+      </div>
+    </section>
+
+    <section class="view" id="view-applications">
+      <div class="card">
+        <div class="row"><h2>Applications</h2><span class="spacer"></span><span class="muted small">Drafts only — submission stays under your control</span></div>
+        <div id="appList"><div class="empty">Loading...</div></div>
+      </div>
+    </section>
+
+    <section class="view" id="view-outreach">
+      <div class="grid two">
+        <div class="card">
+          <h2>Outreach drafts</h2>
+          <div id="outreachList"><div class="empty">Loading...</div></div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <h2>Add recruiter</h2>
+            <div class="field"><label>Name</label><input id="recName" placeholder="Jane Doe" /></div>
+            <div class="field"><label>Company</label><input id="recCompany" placeholder="Acme" /></div>
+            <div class="field"><label>Email</label><input id="recEmail" placeholder="jane@acme.com" /></div>
+            <div class="field"><label>LinkedIn URL</label><input id="recLinkedin" placeholder="https://linkedin.com/in/..." /></div>
+            <div class="field"><label>Role</label><input id="recRole" placeholder="Technical Recruiter" /></div>
+            <button class="primary" onclick="addRecruiter()">Save recruiter</button>
+          </div>
+          <div class="card">
+            <h2>Recruiters</h2>
+            <div id="recruiterList"><div class="empty">No recruiters yet.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-profile">
+      <div class="grid two">
+        <div class="card">
+          <h2>Candidate profile</h2>
+          <div id="profileSummary"><div class="empty">Loading...</div></div>
+          <hr />
+          <h2>Preferences</h2>
+          <div class="field"><label>Target roles (comma separated)</label><input id="prefRoles" /></div>
+          <div class="field"><label>Locations (comma separated)</label><input id="prefLocations" /></div>
+          <div class="row">
+            <div class="field" style="flex:1"><label>Minimum salary</label><input id="prefSalary" type="number" /></div>
+            <div class="field" style="flex:1"><label>Currency</label><input id="prefCurrency" /></div>
+          </div>
+          <div class="field"><label><input type="checkbox" id="prefRemote" style="width:auto" /> Remote roles OK</label></div>
+          <button class="primary" onclick="savePreferences()">Save preferences</button>
+        </div>
+        <div class="card">
+          <h2>Resume engine</h2>
+          <p class="muted small">Upload PDF/DOCX/TXT. Parsing extracts skills, experience, projects, education and ATS keywords.</p>
+          <div class="field"><label>Variant</label><input id="resumeVariant" value="master" /></div>
+          <div class="field"><label>Resume file</label><input id="resumeFile" type="file" accept=".pdf,.docx,.txt,.md" /></div>
+          <button class="primary" onclick="uploadResume()">Upload & parse</button>
+          <hr />
+          <h3>Uploaded resumes</h3>
+          <div id="resumeList"><div class="empty">No resumes yet.</div></div>
+          <hr />
+          <h3>ATS profile</h3>
+          <div id="atsBox"><div class="empty">Upload a resume to see ATS keywords.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-settings">
+      <div class="grid two">
+        <div class="card">
+          <div class="row"><h2>Job sources</h2><span class="spacer"></span><button onclick="loadSources()">Refresh</button></div>
+          <div id="sourceList"><div class="empty">Loading...</div></div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="row"><h2>LLM providers</h2><span class="spacer"></span><button id="llmTestBtn" onclick="testLlm()">Test LLM</button></div>
+            <div id="llmBox"><div class="empty">Loading...</div></div>
+            <div id="llmTestResults" style="margin-top:10px"></div>
+          </div>
+          <div class="card" style="margin-bottom:14px">
+            <h2>Scheduler</h2>
+            <div id="schedulerBox"><div class="empty">Loading...</div></div>
+            <div class="row" style="margin-top:10px">
+              <button onclick="schedulerAction('start')">Start</button>
+              <button onclick="schedulerAction('stop')">Stop</button>
+              <button class="primary" onclick="schedulerAction('run')">Run pipeline now</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Gmail integration</h2>
+            <div id="gmailBox"><div class="empty">Loading...</div></div>
+            <div class="row" style="margin-top:10px">
+              <button onclick="connectGmail()">Connect Gmail</button>
+              <button onclick="syncGmail()">Sync inbox</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/static/app.js?v=20261108c"></script>
+</body>
+</html>

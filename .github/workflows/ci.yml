@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Compile Python
+        run: python -m compileall -q app
+      - name: Run tests
+        env:
+          SCHEDULER_ENABLED: "false"
+          LLM_PROVIDER: mock
+          LLM_PRIMARY_PROVIDER: ""
+          LLM_SECONDARY_PROVIDER: ""
+          GEMINI_API_KEY: ""
+          GROQ_API_KEY: ""
+          LLM_CACHE_ENABLED: "false"
+          CI: "true"
+        run: python -m pytest -q
